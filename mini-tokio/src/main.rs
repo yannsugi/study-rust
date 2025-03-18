@@ -3,21 +3,35 @@ use futures::task::{self, ArcWake};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
-use std::task::{Context, Poll};
+use std::task::{Context, Poll, Waker};
 use std::thread;
 use std::time::{Duration, Instant};
-
 struct Delay {
     when: Instant,
+    // [MEMO]
+    // `Future` トレイトを実装する型が、`waker`を保持することで、複数のスレッドから`wake`を呼び出す場合、最新の`waker`に更新することができる。
+    waker: Option<Arc<Mutex<Waker>>>,
 }
 
 impl Future for Delay {
-    type Output = &'static str;
+    type Output = ();
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<&'static str> {
-        if Instant::now() >= self.when {
-            println!("Hello world");
-            Poll::Ready("done")
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        // まず、これが "future" の初めての呼び出しであるならば、タイマースレッドを spawn する
+        // もしすでにタイマースレッドが実行されているなら、保存されている `Waker` が
+        // 現在のタスクの "waker" と一致することを確認する
+        if let Some(waker) = &self.waker {
+            let mut waker = waker.lock().unwrap();
+
+            // 保存されている "waker" が現在のタスクの "waker" と一致するか確認する
+            // この確認が必要となるのは、`Delay` インスタンスが複数回の `poll` 呼び出しで異なるタスクへとムーブする可能性があるためである
+            // ムーブが発生している場合、与えられた `Context` に含まれる "waker" は別物になるため、
+            // その変更を反映するように保存されている "waker" を更新しなければならない
+            // [MEMO]
+            // `will_wake`は、`Waker`が同一タスクを`wake`する`Waker`であるかを確認するメソッド。
+            if !waker.will_wake(cx.waker()) {
+                *waker = cx.waker().clone();
+            }
         } else {
             // [MEMO]
             // Poll::Pendingを返す場合、どこかで`waker`に対し確実に`wake`を呼び出す必要がある。
@@ -26,10 +40,12 @@ impl Future for Delay {
             // 現在のタスクに紐づく "waker" ハンドルを取得
             // [MEMO]
             // `waker`は、Rustの非同期プログラミングにおいて、`Future`が再度ポーリングされることをランタイムに通知するためのハンドル。
-            let waker = cx.waker().clone();
             let when = self.when;
+            let waker = Arc::new(Mutex::new(cx.waker().clone()));
+            self.waker = Some(waker.clone());
 
-            // タイマースレッドを spawn
+            // これは `poll` の初回呼び出しである
+            // タイマースレッドを spawn する
             thread::spawn(move || {
                 let now = Instant::now();
 
@@ -37,16 +53,40 @@ impl Future for Delay {
                     thread::sleep(when - now);
                 }
 
+                // 指定した時間が経過した。
+                // "waker" を呼び出すことで呼び出し側へと通知する
+
                 // [MEMO]
                 // cxで、`Task`の`waker`を取得しているため、`wake`を呼び出すことで、`ArcWake`の`wake_by_ref`が呼び出される。
                 // `wake`を呼び出すことで、再度ポーリングされることを通知する。
-                waker.wake();
-            });
+                // waker.wake();
 
+                let waker = waker.lock().unwrap();
+                waker.wake_by_ref();
+            });
+        }
+
+        // "waker" が保存され、タイマースレッドがスタートしたら、delay が完了したかどうかをチェックする。
+        // そのためには、現在の instant を確認すればよい。もし指定時間が経過しているなら、
+        // "future" は完了しているので、`Poll::Ready` を返す
+        if Instant::now() >= self.when {
+            Poll::Ready(())
+        } else {
+            // 指定時間が経過していなかった場合、"future" は未完了のため、`Poll::Pending` を返す。
+            //
+            // `Future` トレイトによる契約によって、`Pending` が返されるときには、
+            // "future" が再度ポーリングされるべき状況になったときに "waker" へと確実に合図を送らなければならない。
+            // 我々のケースでは、ここで `Pending` を返すことによって、指定された時間が経過したタイミングで `Context` 引数がもっている "waker" を呼び起こす、ということを約束していることになる。
+            // 上で spawn したタイマースレッドによって、このことが保証されている。
+            //
+            // もし "waker" を呼び起こすのを忘れたら、タスクは永遠に完了しない。
             // [MEMO]
             // `Poll::Pending`を返すことで、futureがまだ完了していないことを示す。
             // `Poll::Pending`を返すと、`waker`に対し`wake`を呼び出す必要がある。
             // `wake`は、同一コンテキストであれば、別スレッドからでも呼び出すことができる。
+
+            // [MEMO]
+            // 別スレッドで指定時間sleepして次回はnow >= whenの条件になることが確定するので、ここでwakeを呼び出す必要がない。
             Poll::Pending
         }
     }
