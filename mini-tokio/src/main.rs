@@ -190,11 +190,35 @@ fn main() {
 
     mini_tokio.spawn(async {
         let when = Instant::now() + Duration::from_millis(10);
-        let future = Delay { when };
+        let future = Delay { when, waker: None };
 
         let out = future.await;
-        assert_eq!(out, "done");
+        assert_eq!(out, ());
     });
 
     mini_tokio.run();
 }
+
+// Notifyを使うと`waker`に関する詳細をよしなに処理してくれる。
+// use tokio::sync::Notify;
+// use std::sync::Arc;
+// use std::time::{Duration, Instant};
+// use std::thread;
+
+// async fn delay(dur: Duration) {
+//     let when = Instant::now() + dur;
+//     let notify = Arc::new(Notify::new());
+//     let notify2 = notify.clone();
+
+//     thread::spawn(move || {
+//         let now = Instant::now();
+
+//         if now < when {
+//             thread::sleep(when - now);
+//         }
+
+//         notify2.notify_one();
+//     });
+
+//     notify.notified().await;
+// }
