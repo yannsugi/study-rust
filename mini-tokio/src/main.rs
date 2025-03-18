@@ -1,7 +1,8 @@
-use futures::task;
-use std::collections::VecDeque;
+use crossbeam::channel;
+use futures::task::{self, ArcWake};
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -37,6 +38,7 @@ impl Future for Delay {
                 }
 
                 // [MEMO]
+                // cxで、`Task`の`waker`を取得しているため、`wake`を呼び出すことで、`ArcWake`の`wake_by_ref`が呼び出される。
                 // `wake`を呼び出すことで、再度ポーリングされることを通知する。
                 waker.wake();
             });
@@ -50,45 +52,101 @@ impl Future for Delay {
     }
 }
 
+struct Task {
+    // `Task` が `Sync` であるようにするため、`Mutex` を利用します。
+    // 任意のタイミングで、`future` にアクセスするスレッドがただ1つであることが保証されます。
+    // `Mutex` は正しい実装のために必須であるわけではありません。
+    // 実際、本物の Tokio はここで mutex を利用せず、より多くの行数を費やして処理しています
+    // （チュートリアルには収まらない量です）
+    // [MEMO]
+    // `Pin<T>`は、ある値のメモリアドレスを固定（ピン留め）することで、自己参照構造体の安全性を保証する仕組み
+    future: Mutex<Pin<Box<dyn Future<Output = ()> + Send>>>,
+    executor: channel::Sender<Arc<Task>>,
+}
+
 // [MEMO]
-// `Pin<T>`は、ある値のメモリアドレスを固定（ピン留め）することで、自己参照構造体の安全性を保証する仕組み
-type Task = Pin<Box<dyn Future<Output = ()> + Send>>;
+// `ArcWake`は、Rustの非同期プログラミングにおいて、`Waker`を手動管理するための仕組み。
+// `wake`時に呼びだされる関数を定義するためのトレイト。
+impl ArcWake for Task {
+    fn wake_by_ref(arc_self: &Arc<Self>) {
+        // [MEMO]
+        // `MniTokio`の`Sender`に対して、`Task`を送信することで、再度スケジューリングを行う。
+        arc_self.schedule();
+    }
+}
+
+impl Task {
+    fn schedule(self: &Arc<Self>) {
+        let _ = self.executor.send(self.clone());
+    }
+
+    fn poll(self: Arc<Self>) {
+        // `Task` インスタンスから "waker" を生成する
+        // 上で実装した `ArcWake` を利用する
+        let waker = task::waker(self.clone());
+        let mut cx: Context<'_> = Context::from_waker(&waker);
+
+        // 別のスレッドは "future" のロックを取ろうとしていない
+        let mut future = self.future.try_lock().unwrap();
+
+        // "future" をポーリングする
+        // [MEMO]
+        // こちらは`Future` トレイトのpollメソッドを呼び出している
+        let _ = future.as_mut().poll(&mut cx);
+    }
+
+    // 与えられた "future" に関する新しいタスクを spawn する
+    //
+    // "future" を含むタスクを新しく作り、`sender` にプッシュする
+    // チャネルの受信側はタスクを取得して実行する
+    // [MEMO]
+    // `MiniTokio`の`Sender`を引数に取ることで、`MiniTokio`のインスタンスに対して`Task`を送信することができる
+    fn spawn<F>(future: F, sender: &channel::Sender<Arc<Task>>)
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        let task = Arc::new(Task {
+            future: Mutex::new(Box::pin(future)),
+            executor: sender.clone(),
+        });
+
+        let _ = sender.send(task);
+    }
+}
 
 struct MiniTokio {
-    tasks: VecDeque<Task>,
+    scheduled: channel::Receiver<Arc<Task>>,
+    sender: channel::Sender<Arc<Task>>,
 }
 
 impl MiniTokio {
+    /// mini-tokio インスタンスを初期化する
     fn new() -> MiniTokio {
-        MiniTokio {
-            tasks: VecDeque::new(),
+        let (sender, scheduled) = channel::unbounded();
+
+        MiniTokio { scheduled, sender }
+    }
+
+    fn run(&self) {
+        while let Ok(task) = self.scheduled.recv() {
+            task.poll();
         }
     }
 
     /// mini-tokio のインスタンスに "future" を渡す
-    fn spawn<F>(&mut self, future: F)
+    ///
+    /// 与えられる "future" は `Task` によってラップされ、`スケジュール` キューにプッシュされる。
+    /// `run` が呼び出されたときに "future" が実行される
+    fn spawn<F>(&self, future: F)
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        self.tasks.push_back(Box::pin(future));
-    }
-
-    fn run(&mut self) {
-        let waker = task::noop_waker();
-        let mut cx = Context::from_waker(&waker);
-
-        // tasks が空になるまでループ
-        while let Some(mut task) = self.tasks.pop_front() {
-            if task.as_mut().poll(&mut cx).is_pending() {
-                // pending なタスクは、再度 tasks に push しておく
-                self.tasks.push_back(task);
-            }
-        }
+        Task::spawn(future, &self.sender);
     }
 }
 
 fn main() {
-    let mut mini_tokio = MiniTokio::new();
+    let mini_tokio = MiniTokio::new();
 
     mini_tokio.spawn(async {
         let when = Instant::now() + Duration::from_millis(10);
