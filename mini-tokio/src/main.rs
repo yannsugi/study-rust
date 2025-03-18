@@ -18,10 +18,13 @@ impl Future for Delay {
             println!("Hello world");
             Poll::Ready("done")
         } else {
+            // [MEMO]
             // Poll::Pendingを返す場合、どこかで`waker`に対し確実に`wake`を呼び出す必要がある。
             // これを行わないと、futureは永遠に`Poll::Pending`を返し続ける。
 
             // 現在のタスクに紐づく "waker" ハンドルを取得
+            // [MEMO]
+            // `waker`は、Rustの非同期プログラミングにおいて、`Future`が再度ポーリングされることをランタイムに通知するためのハンドル。
             let waker = cx.waker().clone();
             let when = self.when;
 
@@ -33,33 +36,27 @@ impl Future for Delay {
                     thread::sleep(when - now);
                 }
 
+                // [MEMO]
+                // `wake`を呼び出すことで、再度ポーリングされることを通知する。
                 waker.wake();
             });
 
+            // [MEMO]
+            // `Poll::Pending`を返すことで、futureがまだ完了していないことを示す。
+            // `Poll::Pending`を返すと、`waker`に対し`wake`を呼び出す必要がある。
+            // `wake`は、同一コンテキストであれば、別スレッドからでも呼び出すことができる。
             Poll::Pending
         }
     }
 }
 
-fn main() {
-    let mut mini_tokio = MiniTokio::new();
-
-    mini_tokio.spawn(async {
-        let when = Instant::now() + Duration::from_millis(10);
-        let future = Delay { when };
-
-        let out = future.await;
-        assert_eq!(out, "done");
-    });
-
-    mini_tokio.run();
-}
+// [MEMO]
+// `Pin<T>`は、ある値のメモリアドレスを固定（ピン留め）することで、自己参照構造体の安全性を保証する仕組み
+type Task = Pin<Box<dyn Future<Output = ()> + Send>>;
 
 struct MiniTokio {
     tasks: VecDeque<Task>,
 }
-
-type Task = Pin<Box<dyn Future<Output = ()> + Send>>;
 
 impl MiniTokio {
     fn new() -> MiniTokio {
@@ -80,10 +77,26 @@ impl MiniTokio {
         let waker = task::noop_waker();
         let mut cx = Context::from_waker(&waker);
 
+        // tasks が空になるまでループ
         while let Some(mut task) = self.tasks.pop_front() {
             if task.as_mut().poll(&mut cx).is_pending() {
+                // pending なタスクは、再度 tasks に push しておく
                 self.tasks.push_back(task);
             }
         }
     }
+}
+
+fn main() {
+    let mut mini_tokio = MiniTokio::new();
+
+    mini_tokio.spawn(async {
+        let when = Instant::now() + Duration::from_millis(10);
+        let future = Delay { when };
+
+        let out = future.await;
+        assert_eq!(out, "done");
+    });
+
+    mini_tokio.run();
 }
