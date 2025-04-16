@@ -36,7 +36,6 @@ jobs:
 
       # ✅ conflict が起きたときだけ、状態を戻す
       - name: Reset merge state
-        if: steps.merge_check.outputs.has_conflict == 'true'
         run: git reset --merge || true
 
       # ✅ conflict なければ即マージして終了🎉
