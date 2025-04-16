@@ -64,7 +64,8 @@ jobs:
       #       手動で解消してください。
 
       - name: Create PR
-        if: ${{ steps.check_pr.outputs.count == 0 }}
+        if: steps.merge_check.outputs.has_conflict == 'true'
+        id: create_pr
         run: |
           today=`TZ=JST date +"%Y-%m-%d"`
           gh pr create -B ${BASE_BRANCH} -t "${PR_TITLE} ${today}" -b "" -d
