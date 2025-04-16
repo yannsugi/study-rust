@@ -9,6 +9,9 @@ on:
       to_branch:
         required: true
         type: string
+    secrets:
+      custom_token:
+        required: true
     outputs:
       merge_successful:
         value: ${{ jobs.merge-job.outputs.merge_successful }}
@@ -24,7 +27,8 @@ jobs:
           ref: ${{ inputs.to_branch }}
           fetch-depth: 0
 
-      - run: |
+      - name: Set up Git
+        run: |
           git config user.name "yannsugi"
           git config user.email "yannsugi966@gmail.com"
 
@@ -40,11 +44,17 @@ jobs:
         if: steps.merge.outputs.has_conflict == 'false'
         run: git push origin ${{ inputs.to_branch }}
 
+      - name: Clean up merge state before PR
+        if: steps.merge.outputs.has_conflict == 'true'
+        run: |
+          git merge --abort || true
+          git reset --hard HEAD
+
       - name: Create PR if conflict occurs
         if: steps.merge.outputs.has_conflict == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.custom_token }}
           title: "⚠️ Conflict: Merge ${{ inputs.from_branch }} → ${{ inputs.to_branch }}"
           commit-message: "Auto PR due to conflict"
           base: ${{ inputs.to_branch }}
