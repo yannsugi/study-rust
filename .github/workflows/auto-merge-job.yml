@@ -55,6 +55,7 @@ jobs:
         run: |
           git fetch origin ${{ inputs.from_branch }}
           git merge origin/${{ inputs.from_branch }} --no-edit || true
+          git status
 
       - name: Create PR if conflict occurs
         if: steps.merge.outputs.has_conflict == 'true'
@@ -66,7 +67,6 @@ jobs:
           base: ${{ inputs.to_branch }}
           branch: auto-merge/${{ inputs.from_branch }}-to-${{ inputs.to_branch }}
           delete-branch: true
-          commit: false  # ✅ これが重要！
           body: |
             ⚠️ マージコンフリクトが発生しました。
             **`${{ inputs.from_branch }}` → `${{ inputs.to_branch }}`**
