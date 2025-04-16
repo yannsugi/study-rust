@@ -9,7 +9,7 @@ on:
 jobs:
   merge-a-to-b:
     if: github.ref == 'refs/heads/test-env-a'
-    uses: ./.github/workflows/auto-merge/merge-job.yml
+    uses: ./.github/workflows/auto-merge-job.yml
     with:
       from_branch: test-env-a
       to_branch: test-env-b
@@ -22,7 +22,7 @@ jobs:
       always() &&
       needs.merge-a-to-b.outputs.merge_successful == 'true' &&
       (github.ref == 'refs/heads/test-env-a' || github.ref == 'refs/heads/test-env-b')
-    uses: ./.github/workflows/auto-merge/merge-job.yml
+    uses: ./.github/workflows/auto-merge-job.yml
     with:
       from_branch: test-env-b
       to_branch: test-env-c
