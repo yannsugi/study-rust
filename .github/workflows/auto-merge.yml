@@ -54,5 +54,5 @@ jobs:
           branch: "auto-merge/${{ matrix.from }}-to-${{ matrix.to }}"
           body: |
             ⚠️ This PR was created automatically because a merge conflict occurred
-            while trying to merge `${{ matrix.from }}` into `${{ matrix.to}`.
+            while trying to merge `${{ matrix.from }}` into `${{ matrix.to}}`.
             Please resolve the conflict manually.
