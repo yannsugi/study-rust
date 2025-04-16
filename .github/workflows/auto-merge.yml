@@ -67,7 +67,7 @@ jobs:
         if: steps.merge_check.outputs.has_conflict == 'true'
         id: create_pr
         run: |
-          gh pr create -b test-env-b -t "test" -b ""
+          gh pr create --base test-env-b --head test-env-a --title "test" -body "testdayo"
 
       # # ✅ GitHub CLI セットアップ
       # - name: Setup gh CLI
