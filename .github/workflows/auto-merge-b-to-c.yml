@@ -3,7 +3,7 @@ name: Auto Merge B to C
 on:
   push:
     branches:
-      - test-env-b
+      # - test-env-b
 
 jobs:
   merge-b-to-c:

@@ -1,0 +1,27 @@
+name: Create a pull request from changes in main
+on:
+  push:
+    branches:
+      - test-env-a
+jobs:
+  create_pull_request:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # mainマージ後に差分を取り込みたいブランチを指定する
+        from-branch: [test-env-a]
+        to-branch: [test-env-b]
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ matrix.to-branch }}
+      - name: Pull test-env-a into branch
+        run: |
+          git fetch origin  ${{ matrix.from-branch }}
+          git reset --hard  ${{ matrix.from-branch }}
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          title: Merge  ${{ matrix.from-branch }} into ${{ matrix.to-branch }}
+          branch:  ${{ matrix.from-branch }}
