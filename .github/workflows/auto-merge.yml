@@ -59,21 +59,13 @@ jobs:
       #       `test-env-a` → `test-env-b` のマージにコンフリクトがあります。
       #       手動で解消してください。
 
-      - name: Setup GitHub CLI
-        uses: cli/cli-action@v2
-
-      - name: Create PR if not exists
+      - name: Create PR
         run: |
-          gh pr list --base test-env-b --head test-env-a --json number --jq '.[0].number' > pr.txt
-          if [ "$(cat pr.txt)" = "null" ]; then
-            gh pr create \
-              --base test-env-b \
-              --head test-env-a \
-              --title "Merge test-env-a into test-env-b" \
-              --body "CIで自動作成されたPRです。マージを確認してください。"
-          else
-            echo "PR already exists: #$(cat pr.txt)"
-          fi
+          gh pr create \
+            --base test-env-b \
+            --head test-env-a \
+            --title "Merge test-env-a into test-env-b" \
+            --body "自動作成されたプルリクエストです。"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
