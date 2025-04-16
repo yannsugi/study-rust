@@ -8,7 +8,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # mainマージ後に差分を取り込みたいブランチを指定する
         from-branch: [test-env-a]
         to-branch: [test-env-b]
     steps:

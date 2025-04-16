@@ -1,0 +1,70 @@
+name: Auto Merge A to B
+
+on:
+  push:
+    branches:
+      - test-env-a
+
+jobs:
+  merge-a-to-b:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout test-env-b
+        uses: actions/checkout@v4
+        with:
+          ref: test-env-b
+          fetch-depth: 0
+
+      - name: Set up Git
+        run: |
+          git config user.name "yannsugi"
+          git config user.email "yannsugi966@gmail.com"
+
+      - name: Merge test-env-a into test-env-b
+        id: merge
+        run: |
+          git fetch origin test-env-a
+          if git merge origin/test-env-a --no-edit; then
+            echo "has_conflict=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_conflict=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - id: merge
+        run: |
+          if git merge origin/${{ inputs.from_branch }} --no-edit; then
+            echo "has_conflict=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_conflict=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push if merge successful
+        if: steps.merge.outputs.has_conflict == 'false'
+        run: git push origin test-env-b
+
+      - name: Abort and reset if conflict
+        if: steps.merge.outputs.has_conflict == 'true'
+        run: |
+          git merge --abort || true
+          git reset --hard HEAD
+
+      - name: Recreate conflict for PR
+        if: steps.merge.outputs.has_conflict == 'true'
+        run: |
+          git fetch origin test-env-a
+          git merge origin/test-env-a --no-edit || true
+
+      - name: Create PR if conflict
+        if: steps.merge.outputs.has_conflict == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "🔀 Conflict: Merge test-env-a → test-env-b"
+          base: test-env-b
+          branch: auto-merge/test-env-a-to-test-env-b
+          delete-branch: true
+          commit-message: "Auto PR: Resolve conflicts from test-env-a to test-env-b"
+          body: |
+            ⚠️ マージコンフリクトが発生しました。
+            `test-env-a` → `test-env-b` の自動マージに失敗しています。
+            手動で確認・マージしてください。
