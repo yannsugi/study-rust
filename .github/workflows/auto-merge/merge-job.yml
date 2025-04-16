@@ -1,0 +1,59 @@
+name: Reusable Merge Job
+
+on:
+  workflow_call:
+    inputs:
+      from_branch:
+        required: true
+        type: string
+      to_branch:
+        required: true
+        type: string
+    secrets:
+      github_token:
+        required: true
+    outputs:
+      merge_successful:
+        value: ${{ jobs.merge-job.outputs.merge_successful }}
+
+jobs:
+  merge-job:
+    runs-on: ubuntu-latest
+    outputs:
+      merge_successful: ${{ steps.merge.outputs.has_conflict == 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.to_branch }}
+          fetch-depth: 0
+
+      - run: |
+          git config user.name "yannsugi"
+          git config user.email "yannsugi966@gmail.com"
+
+      - id: merge
+        run: |
+          if git merge origin/${{ inputs.from_branch }} --no-edit; then
+            echo "has_conflict=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_conflict=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push merge result if successful
+        if: steps.merge.outputs.has_conflict == 'false'
+        run: git push origin ${{ inputs.to_branch }}
+
+      - name: Create PR if conflict occurs
+        if: steps.merge.outputs.has_conflict == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.github_token }}
+          title: "⚠️ Conflict: Merge ${{ inputs.from_branch }} → ${{ inputs.to_branch }}"
+          commit-message: "Auto PR due to conflict"
+          base: ${{ inputs.to_branch }}
+          branch: auto-merge/${{ inputs.from_branch }}-to-${{ inputs.to_branch }}
+          body: |
+            ⚠️ マージコンフリクトが発生しました。
+            **`${{ inputs.from_branch }}` → `${{ inputs.to_branch }}`**
+            
+            手動で解決してマージしてください。

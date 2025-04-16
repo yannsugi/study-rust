@@ -1,4 +1,4 @@
-name: Auto Merge Downstream with Output Flag
+name: Auto Merge Downstream
 
 on:
   push:
@@ -7,50 +7,24 @@ on:
       - test-env-b
 
 jobs:
-  merge-downstream:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - from: test-env-a
-            to: test-env-b
-          - from: test-env-b
-            to: test-env-c
+  merge-a-to-b:
+    if: github.ref == 'refs/heads/test-env-a'
+    uses: ./.github/workflows/auto-merge/merge-job.yml
+    with:
+      from_branch: test-env-a
+      to_branch: test-env-b
+    secrets:
+      github_token: ${{ secrets.GITHUB_TOKEN }}
 
-    steps:
-      - name: Checkout target branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ matrix.to }}
-          fetch-depth: 0
-
-      - name: Set up Git
-        run: |
-          git config user.name "yannsugi"
-          git config user.email "yannsugi966@gmail.com"
-
-      - id: merge
-        run: |
-          if git merge origin/${{ matrix.from }} --no-edit; then
-            echo "has_conflict=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_conflict=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Push if merge successful
-        if: steps.merge.outputs.has_conflict == 'false'
-        run: git push origin ${{ matrix.to }}
-
-      - name: Create PR if conflict
-        if: steps.merge.outputs.has_conflict == 'true'
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          title: "Conflict: Merge ${{ matrix.from }} → ${{ matrix.to }}"
-          commit-message: "Auto PR due to conflict"
-          base: ${{ matrix.to }}
-          branch: "auto-merge/${{ matrix.from }}-to-${{ matrix.to }}"
-          body: |
-            ⚠️ This PR was created automatically because a merge conflict occurred
-            while trying to merge `${{ matrix.from }}` into `${{ matrix.to }}`.
-            Please resolve the conflict manually.
+  merge-b-to-c:
+    needs: merge-a-to-b
+    if: |
+      always() &&
+      needs.merge-a-to-b.outputs.merge_successful == 'true' &&
+      (github.ref == 'refs/heads/test-env-a' || github.ref == 'refs/heads/test-env-b')
+    uses: ./.github/workflows/auto-merge/merge-job.yml
+    with:
+      from_branch: test-env-b
+      to_branch: test-env-c
+    secrets:
+      github_token: ${{ secrets.GITHUB_TOKEN }}
