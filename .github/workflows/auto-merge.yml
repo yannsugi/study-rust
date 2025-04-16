@@ -52,12 +52,9 @@ jobs:
         id: create_pr
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "Conflict PR: test-env-a → test-env-b"
           title: "🔀 Conflict: Merge test-env-a into test-env-b"
-          base: test-env-b
-          branch: auto-merge/test-env-a-to-test-env-b
-          delete-branch: true
+          branch: test-env-a
           body: |
             ⚠️ 自動マージに失敗しました。
             `test-env-a` → `test-env-b` のマージにコンフリクトがあります。
