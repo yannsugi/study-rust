@@ -34,11 +34,11 @@ jobs:
       - id: merge
         run: |
           if git merge origin/${{ matrix.from }} --no-edit; then
-            echo "has_conflict=false" >> $GITHUB_OUTPUT
-          else
             echo "has_conflict=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_conflict=false" >> $GITHUB_OUTPUT
           fi
-          
+
       - name: Debug GITHUB_OUTPUT
         run: cat $GITHUB_OUTPUT
 
