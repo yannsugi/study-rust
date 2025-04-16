@@ -68,7 +68,7 @@ jobs:
         id: create_pr
         run: |
           today=`TZ=JST date +"%Y-%m-%d"`
-          gh pr create -B ${BASE_BRANCH} -t "${PR_TITLE} ${today}" -b "" -d
+          gh pr create -B ${BASE_BRANCH} -t "test" -b "" -d
 
       # # ✅ GitHub CLI セットアップ
       # - name: Setup gh CLI
