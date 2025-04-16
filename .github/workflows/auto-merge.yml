@@ -13,8 +13,6 @@ jobs:
     with:
       from_branch: test-env-a
       to_branch: test-env-b
-    secrets:
-      github_token: ${{ secrets.GITHUB_TOKEN }}
 
   merge-b-to-c:
     needs: merge-a-to-b
@@ -26,5 +24,3 @@ jobs:
     with:
       from_branch: test-env-b
       to_branch: test-env-c
-    secrets:
-      github_token: ${{ secrets.GITHUB_TOKEN }}
