@@ -9,6 +9,9 @@ on:
       to_branch:
         required: true
         type: string
+    secrets:
+      custom_token:
+        required: true
     outputs:
       merge_successful:
         value: ${{ jobs.merge-job.outputs.merge_successful }}
@@ -47,15 +50,22 @@ jobs:
           git merge --abort || true
           git reset --hard HEAD
 
+      - name: Recreate merge conflict for PR
+        if: steps.merge.outputs.has_conflict == 'true'
+        run: |
+          git fetch origin ${{ inputs.from_branch }}
+          git merge origin/${{ inputs.from_branch }} --no-edit || true
+
       - name: Create PR if conflict occurs
         if: steps.merge.outputs.has_conflict == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.custom_token }}
           title: "⚠️ Conflict: Merge ${{ inputs.from_branch }} → ${{ inputs.to_branch }}"
           commit-message: "Auto PR due to conflict"
           base: ${{ inputs.to_branch }}
           branch: auto-merge/${{ inputs.from_branch }}-to-${{ inputs.to_branch }}
+          delete-branch: true
           body: |
             ⚠️ マージコンフリクトが発生しました。
             **`${{ inputs.from_branch }}` → `${{ inputs.to_branch }}`**

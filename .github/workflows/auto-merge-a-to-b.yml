@@ -1,4 +1,4 @@
-name: Auto Merge Downstream
+name: Auto Merge A to B
 
 on:
   push:
@@ -6,9 +6,10 @@ on:
       - test-env-a
 
 jobs:
-  merge-a-to-b:
-    if: github.ref == 'refs/heads/test-env-a'
+  merge-b-to-c:
     uses: ./.github/workflows/auto-merge-job.yml
     with:
       from_branch: test-env-a
       to_branch: test-env-b
+    secrets:
+      custom_token: ${{ secrets.GITHUB_TOKEN }}
