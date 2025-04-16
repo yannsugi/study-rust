@@ -20,27 +20,25 @@ jobs:
     steps:
       - name: Checkout target branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.to }}
+          fetch-depth: 0
 
       - name: Set up Git
         run: |
           git config user.name "yannsugi"
           git config user.email "yannsugi966@gmail.com"
 
-      - name: Fetch and check out target branch
-        run: |
-          git fetch origin ${{ matrix.to }}
-          git checkout ${{ matrix.to }}
-
       - id: merge
         run: |
           if git merge origin/${{ matrix.from }} --no-edit; then
-            echo "has_conflict=true" >> $GITHUB_OUTPUT
+            echo "has_conflict=false" >> "$GITHUB_OUTPUT"
           else
-            echo "has_conflict=false" >> $GITHUB_OUTPUT
+            echo "has_conflict=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Debug GITHUB_OUTPUT
-        run: cat $GITHUB_OUTPUT
+        run: cat "$GITHUB_OUTPUT"
 
       - name: Push if merge successful
         if: steps.merge.outputs.has_conflict == 'false'
@@ -57,5 +55,5 @@ jobs:
           branch: "auto-merge/${{ matrix.from }}-to-${{ matrix.to }}"
           body: |
             ⚠️ This PR was created automatically because a merge conflict occurred
-            while trying to merge `${{ matrix.from }}` into `${{ matrix.to}}`.
+            while trying to merge `${{ matrix.from }}` into `${{ matrix.to }}`.
             Please resolve the conflict manually.
