@@ -9,9 +9,6 @@ on:
       to_branch:
         required: true
         type: string
-    secrets:
-      custom_token:
-        required: true
     outputs:
       merge_successful:
         value: ${{ jobs.merge-job.outputs.merge_successful }}
@@ -54,7 +51,7 @@ jobs:
         if: steps.merge.outputs.has_conflict == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.custom_token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           title: "⚠️ Conflict: Merge ${{ inputs.from_branch }} → ${{ inputs.to_branch }}"
           commit-message: "Auto PR due to conflict"
           base: ${{ inputs.to_branch }}
