@@ -67,7 +67,7 @@ jobs:
             --title "Merge test-env-a into test-env-b" \
             --body "自動作成されたプルリクエストです。"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ACTIONS_TOKEN }}
 
       # # ✅ GitHub CLI セットアップ
       # - name: Setup gh CLI
