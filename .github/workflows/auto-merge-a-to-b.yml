@@ -1,0 +1,14 @@
+name: Auto Merge Downstream
+
+on:
+  push:
+    branches:
+      - test-env-a
+
+jobs:
+  merge-a-to-b:
+    if: github.ref == 'refs/heads/test-env-a'
+    uses: ./.github/workflows/auto-merge-job.yml
+    with:
+      from_branch: test-env-a
+      to_branch: test-env-b
