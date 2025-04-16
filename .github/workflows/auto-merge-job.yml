@@ -66,6 +66,7 @@ jobs:
           base: ${{ inputs.to_branch }}
           branch: auto-merge/${{ inputs.from_branch }}-to-${{ inputs.to_branch }}
           delete-branch: true
+          commit: false  # ✅ これが重要！
           body: |
             ⚠️ マージコンフリクトが発生しました。
             **`${{ inputs.from_branch }}` → `${{ inputs.to_branch }}`**
