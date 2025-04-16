@@ -45,19 +45,37 @@ jobs:
           git merge origin/test-env-a --no-edit
           git push origin test-env-b
 
-      # ✅ conflict がある場合は PR を作成
-      - name: Create PR if conflict
-        if: steps.merge_check.outputs.has_conflict == 'true'
-        id: create_pr
-        uses: peter-evans/create-pull-request@v6
-        with:
-          commit-message: "Conflict PR: test-env-a → test-env-b"
-          title: "🔀 Conflict: Merge test-env-a into test-env-b"
-          branch: test-env-a
-          body: |
-            ⚠️ 自動マージに失敗しました。
-            `test-env-a` → `test-env-b` のマージにコンフリクトがあります。
-            手動で解消してください。
+      # # ✅ conflict がある場合は PR を作成
+      # - name: Create PR if conflict
+      #   if: steps.merge_check.outputs.has_conflict == 'true'
+      #   id: create_pr
+      #   uses: peter-evans/create-pull-request@v6
+      #   with:
+      #     commit-message: "Conflict PR: test-env-a → test-env-b"
+      #     title: "🔀 Conflict: Merge test-env-a into test-env-b"
+      #     branch: auto-merge/test-env-a-to-test-env-b
+      #     body: |
+      #       ⚠️ 自動マージに失敗しました。
+      #       `test-env-a` → `test-env-b` のマージにコンフリクトがあります。
+      #       手動で解消してください。
+
+      - name: Setup GitHub CLI
+        uses: cli/cli-action@v2
+
+      - name: Create PR if not exists
+        run: |
+          gh pr list --base test-env-b --head test-env-a --json number --jq '.[0].number' > pr.txt
+          if [ "$(cat pr.txt)" = "null" ]; then
+            gh pr create \
+              --base test-env-b \
+              --head test-env-a \
+              --title "Merge test-env-a into test-env-b" \
+              --body "CIで自動作成されたPRです。マージを確認してください。"
+          else
+            echo "PR already exists: #$(cat pr.txt)"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # # ✅ GitHub CLI セットアップ
       # - name: Setup gh CLI
