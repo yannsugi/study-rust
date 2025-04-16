@@ -32,33 +32,33 @@ jobs:
           git config user.name "yannsugi"
           git config user.email "yannsugi966@gmail.com"
 
-      - id: merge
-        run: |
-          if git merge origin/${{ inputs.from_branch }} --no-edit; then
-            echo "has_conflict=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_conflict=true" >> "$GITHUB_OUTPUT"
-          fi
+      # - id: merge
+      #   run: |
+      #     if git merge origin/${{ inputs.from_branch }} --no-edit; then
+      #       echo "has_conflict=false" >> "$GITHUB_OUTPUT"
+      #     else
+      #       echo "has_conflict=true" >> "$GITHUB_OUTPUT"
+      #     fi
 
-      - name: Push merge result if successful
-        if: steps.merge.outputs.has_conflict == 'false'
-        run: git push origin ${{ inputs.to_branch }}
+      # - name: Push merge result if successful
+      #   if: steps.merge.outputs.has_conflict == 'false'
+      #   run: git push origin ${{ inputs.to_branch }}
 
-      - name: Clean up merge state before PR
-        if: steps.merge.outputs.has_conflict == 'true'
-        run: |
-          git merge --abort || true
-          git reset --hard HEAD
+      # - name: Clean up merge state before PR
+      #   if: steps.merge.outputs.has_conflict == 'true'
+      #   run: |
+      #     git merge --abort || true
+      #     git reset --hard HEAD
 
-      - name: Recreate merge conflict for PR
-        if: steps.merge.outputs.has_conflict == 'true'
-        run: |
-          git fetch origin ${{ inputs.from_branch }}
-          git merge origin/${{ inputs.from_branch }} --no-edit || true
-          git status
+      # - name: Recreate merge conflict for PR
+      #   if: steps.merge.outputs.has_conflict == 'true'
+      #   run: |
+      #     git fetch origin ${{ inputs.from_branch }}
+      #     git merge origin/${{ inputs.from_branch }} --no-edit || true
+      #     git status
 
       - name: Create PR if conflict occurs
-        if: steps.merge.outputs.has_conflict == 'true'
+        # if: steps.merge.outputs.has_conflict == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.custom_token }}
