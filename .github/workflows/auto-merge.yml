@@ -67,8 +67,7 @@ jobs:
         if: steps.merge_check.outputs.has_conflict == 'true'
         id: create_pr
         run: |
-          today=`TZ=JST date +"%Y-%m-%d"`
-          gh pr create -B ${BASE_BRANCH} -t "test" -b "" -d
+          gh pr create -b test-env-b -t "test" -b ""
 
       # # ✅ GitHub CLI セットアップ
       # - name: Setup gh CLI
