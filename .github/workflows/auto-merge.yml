@@ -37,9 +37,6 @@ jobs:
             echo "has_conflict=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Debug GITHUB_OUTPUT
-        run: cat "$GITHUB_OUTPUT"
-
       - name: Push if merge successful
         if: steps.merge.outputs.has_conflict == 'false'
         run: git push origin ${{ matrix.to }}
