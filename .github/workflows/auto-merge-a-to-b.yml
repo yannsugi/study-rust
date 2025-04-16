@@ -6,7 +6,7 @@ on:
       - test-env-a
 
 jobs:
-  merge-b-to-c:
+  merge-a-to-b:
     uses: ./.github/workflows/auto-merge-job.yml
     with:
       from_branch: test-env-a
