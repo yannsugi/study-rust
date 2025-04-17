@@ -54,7 +54,6 @@ jobs:
         run: |
           BRANCH_NAME=auto/conflict-fix-$(date +%s)
           git checkout -b $BRANCH_NAME
-          git merge test-env-a || true  # あえてコンフリクト状態のまま
           git push origin $BRANCH_NAME
 
           gh pr create \
