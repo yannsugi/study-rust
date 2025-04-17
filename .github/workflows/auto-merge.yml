@@ -10,81 +10,57 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      PR_TITLE: "[test]"
+      PR_TITLE: "[Conflict] test-env-a -> test-env-b"
       BASE_BRANCH: test-env-b
 
     steps:
-      # ✅ test-env-b を checkout（マージ先）
-      - name: Checkout test-env-b
+      - name: Checkout target branch (test-env-b)
         uses: actions/checkout@v4
         with:
-          ref: test-env-b
+          ref: ${{ env.BASE_BRANCH }}
           fetch-depth: 0
 
-      # ✅ Git 設定
       - name: Set up Git
         run: |
-          git config user.name "yannsugi"
-          git config user.email "yannsugi966@gmail.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      # ✅ test-env-a を dry-run マージして conflict 検知
+      - name: Fetch source branch (test-env-a)
+        run: |
+          git fetch origin test-env-a:test-env-a
+
       - name: Check merge conflict
         id: merge_check
         run: |
-          git fetch origin test-env-a
-          if git merge --no-commit --no-ff origin/test-env-a; then
+          if git merge --no-commit --no-ff test-env-a; then
             echo "has_conflict=false" >> "$GITHUB_OUTPUT"
           else
             echo "has_conflict=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # ✅ conflict が起きたときだけ、状態を戻す
       - name: Reset merge state
         run: git reset --merge || true
 
-      # ✅ conflict なければ即マージして終了🎉
+      # ✅ Conflict がなければ自動マージ
       - name: Auto-merge if no conflict
         if: steps.merge_check.outputs.has_conflict == 'false'
         run: |
-          git merge origin/test-env-a --no-edit
-          git push origin test-env-b
+          git merge test-env-a --no-edit
+          git push origin ${{ env.BASE_BRANCH }}
 
-      # # ✅ conflict がある場合は PR を作成
-      # - name: Create PR if conflict
-      #   if: steps.merge_check.outputs.has_conflict == 'true'
-      #   id: create_pr
-      #   uses: peter-evans/create-pull-request@v6
-      #   with:
-      #     commit-message: "Conflict PR: test-env-a → test-env-b"
-      #     title: "🔀 Conflict: Merge test-env-a into test-env-b"
-      #     branch: auto-merge/test-env-a-to-test-env-b
-      #     body: |
-      #       ⚠️ 自動マージに失敗しました。
-      #       `test-env-a` → `test-env-b` のマージにコンフリクトがあります。
-      #       手動で解消してください。
-      - name: create pr
-        uses: peter-evans/create-pull-request@v7
-        with:
-          branch: "auto-merge/test-env-a-to-test-env-b"
-          title: "auto update"
-          body: "auto update dayo!"
-          commit-message: "Update!"
-      # - name: Create PR
-      #   if: steps.merge_check.outputs.has_conflict == 'true'
-      #   id: create_pr
-      #   run: |
-      #     gh pr create --base test-env-b --head test-env-a --title "test" --body "testdayo"
+      # ✅ Conflict がある場合は対応用ブランチを作成して PR を作成
+      - name: Create conflict resolution branch and PR
+        if: steps.merge_check.outputs.has_conflict == 'true'
+        run: |
+          BRANCH_NAME=auto/conflict-fix-$(date +%s)
+          git checkout -b $BRANCH_NAME
+          git merge test-env-a || true  # あえてコンフリクト状態のまま
+          git push origin $BRANCH_NAME
 
-      # # ✅ GitHub CLI セットアップ
-      # - name: Setup gh CLI
-      #   if: steps.merge_check.outputs.has_conflict == 'true'
-      #   uses: cli/cli-action@v2
-
-      # # ✅ PR に reviewer を自動で追加
-      # - name: Request review
-      #   if: steps.merge_check.outputs.has_conflict == 'true'
-      #   run: |
-      #     gh pr edit "${{ steps.create_pr.outputs.pull-request-url }}" \
-      #       --add-reviewer yannsugi
-      #   env:
-      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          gh pr create \
+            --base ${{ env.BASE_BRANCH }} \
+            --head $BRANCH_NAME \
+            --title "${{ env.PR_TITLE }}" \
+            --body "Auto-generated PR due to merge conflict between test-env-a and test-env-b."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
