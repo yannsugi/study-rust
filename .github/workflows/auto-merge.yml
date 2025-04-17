@@ -62,12 +62,18 @@ jobs:
       #       ⚠️ 自動マージに失敗しました。
       #       `test-env-a` → `test-env-b` のマージにコンフリクトがあります。
       #       手動で解消してください。
-
-      - name: Create PR
-        if: steps.merge_check.outputs.has_conflict == 'true'
-        id: create_pr
-        run: |
-          gh pr create --base test-env-b --head test-env-a --title "test" --body "testdayo"
+      - name: create pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: auto-merge/test-env-a-to-test-env-b
+          title: "auto update"
+          body: "auto update dayo!"
+          commit-message: "Update!"
+      # - name: Create PR
+      #   if: steps.merge_check.outputs.has_conflict == 'true'
+      #   id: create_pr
+      #   run: |
+      #     gh pr create --base test-env-b --head test-env-a --title "test" --body "testdayo"
 
       # # ✅ GitHub CLI セットアップ
       # - name: Setup gh CLI
