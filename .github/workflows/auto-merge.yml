@@ -65,7 +65,7 @@ jobs:
       - name: create pr
         uses: peter-evans/create-pull-request@v7
         with:
-          branch: auto-merge/test-env-a-to-test-env-b
+          branch: "auto-merge/test-env-a-to-test-env-b"
           title: "auto update"
           body: "auto update dayo!"
           commit-message: "Update!"
