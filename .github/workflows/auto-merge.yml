@@ -60,7 +60,7 @@ jobs:
             --base ${{ env.BASE_BRANCH }} \
             --head $BRANCH_NAME \
             --title "${{ env.PR_TITLE }}" \
-            --reviewer "yann"
-            --body "Auto-generated PR due to merge conflict between test-env-a and test-env-b." \
+            --reviewer "yann" \
+            --body "Auto-generated PR due to merge conflict between test-env-a and test-env-b."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
