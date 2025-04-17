@@ -53,7 +53,7 @@ jobs:
         if: steps.merge_check.outputs.has_conflict == 'true'
         run: |
           BRANCH_NAME=auto/conflict-fix-$(date +%s)
-          git checkout -b $BRANCH_NAME origin/test-dev-a
+          git checkout -b $BRANCH_NAME origin/test-env-a
           git push origin $BRANCH_NAME
 
           gh pr create \
