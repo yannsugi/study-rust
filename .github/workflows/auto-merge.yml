@@ -56,11 +56,13 @@ jobs:
           git checkout -b $BRANCH_NAME origin/test-env-a
           git push origin $BRANCH_NAME
 
+          # --reviewer yann \ bad
+          # --reviewer yannsugi \ good
+
           gh pr create \
             --base ${{ env.BASE_BRANCH }} \
             --head $BRANCH_NAME \
             --title "${{ env.PR_TITLE }}" \
-            # --reviewer yann \ bad
             --reviewer yannsugi \ 
             --body "Auto-generated PR due to merge conflict between test-env-a and test-env-b."
         env:
