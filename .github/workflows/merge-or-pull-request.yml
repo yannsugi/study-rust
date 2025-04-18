@@ -77,7 +77,7 @@ jobs:
 
           gh pr create \
             --base ${{ env.BASE_BRANCH }} \
-            --head ${{ env.FIX_CONFLICT_BRANCH }} \
+            --head $FIX_CONFLICT_BRANCH \
             --title "${{ env.PR_TITLE }}" \
             --reviewer yannsugi \
             --body-file ${{ env.PR_BODY_FILE }}
