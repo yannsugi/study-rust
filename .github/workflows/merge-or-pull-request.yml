@@ -22,7 +22,6 @@ jobs:
       EMAIL: "github-actions[bot]@users.noreply.github.com"
       BASE_BRANCH: ${{ inputs.base_branch }}
       HEAD_BRANCH: ${{ inputs.head_branch }}
-      FIX_HEAD_BRANCH: auto/conflict-fix-$(date +%s)
       NEXT_WORKFLOW: ${{ inputs.next_workflow || '' }}
       PR_TITLE: "[Conflict] ${{ inputs.head_branch }} -> ${{ inputs.base_branch }}"
       PR_BODY_FILE: .github/pull_request_template.md
@@ -71,12 +70,14 @@ jobs:
       - name: Create Conflict Resolution Branch and Pull Request
         if: steps.merge_check.outputs.has_conflict == 'true'
         run: |
-          git checkout -b ${{ env.FIX_HEAD_BRANCH }} ${{ env.HEAD_BRANCH }}
-          git push origin ${{ env.FIX_HEAD_BRANCH }}
+        
+          FIX_CONFLICT_BRANCH=auto/conflict/${{ env.HEAD_BRANCH }}-to-${{ env.BASE_BRANCH }}-$(date +%s)
+          git checkout -b $FIX_CONFLICT_BRANCH ${{ env.HEAD_BRANCH }}
+          git push origin $FIX_CONFLICT_BRANCH
 
           gh pr create \
             --base ${{ env.BASE_BRANCH }} \
-            --head ${{ env.FIX_HEAD_BRANCH }} \
+            --head $FIX_CONFLICT_BRANCH \
             --title "${{ env.PR_TITLE }}" \
             --reviewer yannsugi \
             --body-file ${{ env.PR_BODY_FILE }}
