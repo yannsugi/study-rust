@@ -7,15 +7,8 @@ on:
       - test-env-b
 
 jobs:
-  trigger-child:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Call child workflow (Auto Merge)
-        run: |
-          gh workflow run 
-            "auto-merge.yml" \
-            -f from_branch=test-env-b \
-            -f to_branch=test-env-c \
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  merge-a-to-b:
+    uses: ./.github/workflows/auto-merge.yml
+    with:
+      from_branch: test-env-b
+      to_branch: test-env-c
