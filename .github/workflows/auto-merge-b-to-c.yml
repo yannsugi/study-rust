@@ -13,8 +13,9 @@ jobs:
     steps:
       - name: Call child workflow (Auto Merge)
         run: |
-          gh workflow run "Auto Merge" \
+          gh workflow run 
+            "auto-merge.yml" \
             -f from_branch=test-env-b \
-            -f to_branch=test-env-c
+            -f to_branch=test-env-c \
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
