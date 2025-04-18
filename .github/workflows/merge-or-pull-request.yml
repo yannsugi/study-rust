@@ -71,7 +71,7 @@ jobs:
         if: steps.merge_check.outputs.has_conflict == 'true'
         run: |
         
-          FIX_CONFLICT_BRANCH=auto/conflict/${{ env.HEAD_BRANCH }}-to-${{ env.BASE_BRANCH }}-$(date +%s)
+          FIX_CONFLICT_BRANCH=auto/temp/${{ env.HEAD_BRANCH }}-$(date +%s)
           git checkout -b $FIX_CONFLICT_BRANCH ${{ env.HEAD_BRANCH }}
           git push origin $FIX_CONFLICT_BRANCH
 
