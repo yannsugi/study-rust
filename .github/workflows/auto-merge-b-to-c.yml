@@ -23,7 +23,7 @@ jobs:
           fetch-depth: 0
 
       - name: Fetch branchB
-        run: git fetch origin branchB
+        run: git fetch origin ${{ env.BASE_BRANCH }}
 
       - name: Check if branchB is merged
         id: check_source
