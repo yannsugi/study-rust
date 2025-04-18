@@ -49,7 +49,7 @@ jobs:
         if: steps.merge_check.outputs.has_conflict == 'false'
         run: |
           echo "🚀 Performing auto-merge and pushing to ${{ env.BASE_BRANCH }}"
-          git merge --no-ff --no-edit test-env-a
+          git merge --no-edit test-env-a
           git push origin ${{ env.BASE_BRANCH }}
 
       - name: Trigger next workflow (test-env-b → test-env-c)

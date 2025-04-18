@@ -48,7 +48,7 @@ jobs:
       - name: Auto-merge if no conflict
         if: steps.merge_check.outputs.has_conflict == 'false'
         run: |
-          git merge --no-ff --no-edit test-env-b
+          git merge --no-edit test-env-b
           git push origin ${{ env.BASE_BRANCH }}
 
       # ✅ Conflict がある場合は対応用ブランチを作成して PR を作成
