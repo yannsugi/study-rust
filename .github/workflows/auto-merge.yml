@@ -22,8 +22,10 @@ jobs:
 
       - name: Set up Git
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # git config user.name "github-actions[bot]"
+          # git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "yannsugi"
+          git config user.email "yannsugi966@gmail.com"
 
       - name: Fetch source branch (test-env-a)
         run: |
