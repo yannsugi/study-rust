@@ -1,0 +1,84 @@
+name: Merge or Pull Request
+
+on:
+  workflow_call:
+    inputs:
+      head_branch:
+        required: true
+        type: string
+      base_branch:
+        required: true
+        type: string
+      next_workflow:
+        required: false
+        type: string
+
+jobs:
+  merge-or-pull-request:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      USER_NAME: "github-actions[bot]"
+      EMAIL: "github-actions[bot]@users.noreply.github.com"
+      BASE_BRANCH: ${{ inputs.base_branch }}
+      HEAD_BRANCH: ${{ inputs.head_branch }}
+      FIX_HEAD_BRANCH: auto/conflict-fix-$(date +%s)
+      NEXT_WORKFLOW: ${{ inputs.next_workflow || '' }}
+      PR_TITLE: "[Conflict] ${{ inputs.head_branch }} -> ${{ inputs.base_branch }}"
+      PR_BODY_FILE: .github/pull_request_template.md
+
+    steps:
+      - name: Checkout Base Branch (${BASE_BRANCH})
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BASE_BRANCH }}
+          fetch-depth: 0
+
+      - name: Set up Git
+        run: |
+          git config user.name "${{ env.USER_NAME }}"
+          git config user.email "${{ env.EMAIL }}"
+
+      - name: Fetch Source Branch (${HEAD_BRANCH})
+        run: |
+          git fetch origin ${{ env.HEAD_BRANCH }}:${{ env.HEAD_BRANCH }}
+
+      - name: Check Merge Conflict
+        id: merge_check
+        run: |
+          if git merge --no-commit ${{ env.HEAD_BRANCH }}; then
+            echo "has_conflict=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_conflict=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Reset Merge State
+        run: git reset --merge || true
+
+      - name: Merge
+        if: steps.merge_check.outputs.has_conflict == 'false'
+        run: |
+          git merge --no-edit ${{ env.HEAD_BRANCH }}
+          git push origin ${{ env.BASE_BRANCH }}
+
+      - name: Trigger Next Workflow
+        if: steps.merge_check.outputs.has_conflict == 'false' && env.NEXT_WORKFLOW != ''
+        run: |
+          gh workflow run ${{ env.NEXT_WORKFLOW }} --ref ${{ env.BASE_BRANCH }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Conflict Resolution Branch and Pull Request
+        if: steps.merge_check.outputs.has_conflict == 'true'
+        run: |
+          git checkout -b ${{ env.FIX_HEAD_BRANCH }} ${{ env.HEAD_BRANCH }}
+          git push origin ${{ env.FIX_HEAD_BRANCH }}
+
+          gh pr create \
+            --base ${{ env.BASE_BRANCH }} \
+            --head ${{ env.FIX_HEAD_BRANCH }} \
+            --title "${{ env.PR_TITLE }}" \
+            --reviewer yannsugi \
+            --body-file ${{ env.PR_BODY_FILE }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

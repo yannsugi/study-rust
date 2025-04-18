@@ -1,0 +1,14 @@
+name: Merge or Pull Request B to C
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - test-env-b
+
+jobs:
+  merge-or-pull-request-a-to-b:
+    uses: ./.github/workflows/merge-or-pull-request.yml
+    with:
+      head_branch: test-env-b
+      base_branch: test-env-c
