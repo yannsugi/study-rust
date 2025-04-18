@@ -2,6 +2,7 @@ name: Auto Merge B to C
 
 on:
   push:
+    workflow_dispatch:
     branches:
       - test-env-b
 
