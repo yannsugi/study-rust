@@ -56,7 +56,9 @@ jobs:
         if: steps.merge_check.outputs.has_conflict == 'false'
         run: |
           echo "🚀 Triggering next workflow: ${{ env.NEXT_WORKFLOW }}"
-          gh workflow run "${{ env.NEXT_WORKFLOW }}" --ref ${{ env.BASE_BRANCH }}
+          gh workflow run \
+            "${{ env.NEXT_WORKFLOW }}" \
+            --ref ${{ env.BASE_BRANCH }}
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_TOKEN || secrets.GITHUB_TOKEN }}
 
