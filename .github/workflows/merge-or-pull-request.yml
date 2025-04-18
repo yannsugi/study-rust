@@ -20,7 +20,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       USER_NAME: "github-actions[bot]"
       EMAIL: "github-actions[bot]@users.noreply.github.com"
-      REPO=${{ github.repository }}
+      REPO: ${{ github.repository }}
       BASE_BRANCH: ${{ inputs.base_branch }}
       HEAD_BRANCH: ${{ inputs.head_branch }}
       NEXT_WORKFLOW: ${{ inputs.next_workflow || '' }}
