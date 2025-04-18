@@ -16,7 +16,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 必要に応じて PERSONAL_TOKEN に差し替え
 
     steps:
-    　- name: Checkout branchA
+      - name: Checkout branchA
         uses: actions/checkout@v4
         with:
           ref: ${{ env.TARGET_BRANCH }}

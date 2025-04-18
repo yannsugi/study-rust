@@ -16,7 +16,7 @@ jobs:
       BASE_BRANCH: test-env-c
 
     steps:
-    　- name: Checkout branchA
+      - name: Checkout branchA
         uses: actions/checkout@v4
         with:
           ref: ${{ env.TARGET_BRANCH }}
