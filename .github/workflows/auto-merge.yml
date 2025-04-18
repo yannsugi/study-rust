@@ -1,0 +1,89 @@
+name: Auto Merge
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_branch:
+        required: true
+        type: string
+      to_branch:
+        required: true
+        type: string
+      next_workflow:
+        required: false
+        type: string
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    env:
+      USER_NAME: "github-actions[bot]"
+      EMAIL: "github-actions[bot]@users.noreply.github.com"
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TO_BRANCH: ${{ inputs.to_branch }}
+      FROM_BRANCH: ${{ inputs.from_branch }}
+      PR_TITLE: "[Conflict] ${{ inputs.from_branch }} -> ${{ inputs.to_branch }}"
+      NEXT_WORKFLOW: ${{ inputs.next_workflow || '' }}
+
+    steps:
+      - name: Checkout base branch (${TO_BRANCH})
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TO_BRANCH }}
+          fetch-depth: 0
+
+      - name: Set up Git
+        run: |
+          git config user.name "${{ env.USER_NAME }}"
+          git config user.email "${{ env.EMAIL }}"
+
+      - name: Fetch source branch (${FROM_BRANCH})
+        run: |
+          git fetch origin ${{ env.FROM_BRANCH }}:${{ env.FROM_BRANCH }}
+
+      - name: Check for merge conflicts
+        id: merge_check
+        run: |
+          echo "🔍 Checking for conflicts..."
+          if git merge --no-commit --no-ff ${{ env.FROM_BRANCH }}; then
+            echo "✅ No conflict"
+            echo "has_conflict=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "❌ Conflict detected"
+            echo "has_conflict=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Reset merge state
+        run: git reset --merge || true
+
+      - name: Auto-merge if no conflict
+        if: steps.merge_check.outputs.has_conflict == 'false'
+        run: |
+          echo "🚀 Performing auto-merge and pushing to ${{ env.TO_BRANCH }}"
+          git merge --no-edit ${{ env.FROM_BRANCH }}
+          git push origin ${{ env.TO_BRANCH }}
+
+      - name: Trigger next workflow
+        if: steps.merge_check.outputs.has_conflict == 'false' && env.NEXT_WORKFLOW != ''
+        run: |
+          echo "🚀 Triggering next workflow: ${{ env.NEXT_WORKFLOW }}"
+          gh workflow run ${{ env.NEXT_WORKFLOW }} --ref ${{ env.TO_BRANCH }}
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Create conflict resolution branch and PR
+        if: steps.merge_check.outputs.has_conflict == 'true'
+        run: |
+          BRANCH_NAME=auto/conflict-fix-$(date +%s)
+          git checkout -b $BRANCH_NAME origin/${{ env.FROM_BRANCH }}
+          git push origin $BRANCH_NAME
+
+          echo "🔧 Creating PR for manual conflict resolution"
+          gh pr create \
+            --base ${{ env.TO_BRANCH }} \
+            --head $BRANCH_NAME \
+            --title "${{ env.PR_TITLE }}" \
+            --reviewer yannsugi \
+            --body "Auto-generated PR due to merge conflict between ${{ env.FROM_BRANCH }} and ${{ env.TO_BRANCH }}."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
