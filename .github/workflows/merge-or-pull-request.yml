@@ -20,6 +20,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       USER_NAME: "github-actions[bot]"
       EMAIL: "github-actions[bot]@users.noreply.github.com"
+      REPO: ${{ github.repository }}
       BASE_BRANCH: ${{ inputs.base_branch }}
       HEAD_BRANCH: ${{ inputs.head_branch }}
       NEXT_WORKFLOW: ${{ inputs.next_workflow || '' }}
@@ -75,23 +76,21 @@ jobs:
           git checkout -b $FIX_CONFLICT_BRANCH ${{ env.HEAD_BRANCH }}
           git push origin $FIX_CONFLICT_BRANCH
 
+          echo "https://api.github.com/repos/$REPO/commits?sha=$HEAD_BRANCH&per_page=10"
+
           COMMITS=$( \
             curl -s \
               -H "Authorization: token $GH_TOKEN" \
               -H "Accept: application/vnd.github.v3+json" \
-              -H "https://api.github.com/repos/${{ github.repository }}/commits?sha=${{ env.HEAD_BRANCH }}&per_page=10")
+              "https://api.github.com/repos/$REPO/commits?sha=$HEAD_BRANCH&per_page=10")
 
-          LAST_HUMAN_USER=$(echo "$COMMITS" \
-            | jq -r '.[] \
-            | select(.author.login != null and (.author.login | test("\\[bot\\]$") | not)) \
-            | .author.login' \
-            | head -n 1)
+          LAST_HUMAN_USER=$(echo "$COMMITS" | jq -r '.[] | select(.author.login != null and (.author.login | test("\\[bot\\]$") | not)) | .author.login' | head -n 1)
 
           gh pr create \
             --base ${{ env.BASE_BRANCH }} \
             --head $FIX_CONFLICT_BRANCH \
             --title "${{ env.PR_TITLE }}" \
             --reviewer $LAST_HUMAN_USER \
-            --body-file ${{ env.PR_BODY_FILE }}
+            --body-file "${{ env.PR_BODY_FILE }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
