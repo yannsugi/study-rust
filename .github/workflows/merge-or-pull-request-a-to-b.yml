@@ -9,6 +9,6 @@ jobs:
   merge-or-pull-request-a-to-b:
     uses: ./.github/workflows/merge-or-pull-request.yml
     with:
-      head_branch: test-env-a
       base_branch: test-env-b
+      head_branch: test-env-a
       next_workflow: merge-or-pull-request-b-to-c.yml
