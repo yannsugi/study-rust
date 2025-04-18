@@ -9,12 +9,13 @@ jobs:
   auto-merge:
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PR_TITLE: "[Conflict] test-env-a -> test-env-b"
       BASE_BRANCH: test-env-b
+      NEXT_WORKFLOW: auto-merge-b-to-c.yml
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 必要に応じて PERSONAL_TOKEN に差し替え
 
     steps:
-      - name: Checkout target branch (test-env-b)
+      - name: Checkout base branch (test-env-b)
         uses: actions/checkout@v4
         with:
           ref: ${{ env.BASE_BRANCH }}
@@ -24,33 +25,41 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # git config user.name "yannsugi"
-          # git config user.email "yannsugi966@gmail.com"
 
       - name: Fetch source branch (test-env-a)
         run: |
           git fetch origin test-env-a:test-env-a
 
-      - name: Check merge conflict
+      - name: Check for merge conflicts
         id: merge_check
         run: |
+          echo "🔍 Checking for conflicts..."
           if git merge --no-commit --no-ff test-env-a; then
+            echo "✅ No conflict"
             echo "has_conflict=false" >> "$GITHUB_OUTPUT"
           else
+            echo "❌ Conflict detected"
             echo "has_conflict=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Reset merge state
         run: git reset --merge || true
 
-      # ✅ Conflict がなければ自動マージ
       - name: Auto-merge if no conflict
         if: steps.merge_check.outputs.has_conflict == 'false'
         run: |
-          git merge test-env-a --no-edit
+          echo "🚀 Performing auto-merge and pushing to ${{ env.BASE_BRANCH }}"
+          git merge --no-ff --no-edit test-env-a
           git push origin ${{ env.BASE_BRANCH }}
 
-      # ✅ Conflict がある場合は対応用ブランチを作成して PR を作成
+      - name: Trigger next workflow (test-env-b → test-env-c)
+        if: steps.merge_check.outputs.has_conflict == 'false'
+        run: |
+          echo "🚀 Triggering next workflow: ${{ env.NEXT_WORKFLOW }}"
+          gh workflow run "${{ env.NEXT_WORKFLOW }}" --ref ${{ env.BASE_BRANCH }}
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_TOKEN || secrets.GITHUB_TOKEN }}
+
       - name: Create conflict resolution branch and PR
         if: steps.merge_check.outputs.has_conflict == 'true'
         run: |
@@ -58,9 +67,7 @@ jobs:
           git checkout -b $BRANCH_NAME origin/test-env-a
           git push origin $BRANCH_NAME
 
-          # --reviewer yann \ bad
-          # --reviewer yannsugi \ good
-
+          echo "🔧 Creating PR for manual conflict resolution"
           gh pr create \
             --base ${{ env.BASE_BRANCH }} \
             --head $BRANCH_NAME \
