@@ -1,4 +1,4 @@
-name: Auto Merge B to C
+name: Trigger Auto Merge B to C
 
 on:
   workflow_dispatch:
@@ -7,66 +7,14 @@ on:
       - test-env-b
 
 jobs:
-  auto-merge:
+  trigger-child:
     runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      PR_TITLE: "[Conflict] test-env-b -> test-env-c"
-      BASE_BRANCH: test-env-c
 
     steps:
-      - name: Checkout target branch (test-env-c)
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.BASE_BRANCH }}
-          fetch-depth: 0
-
-      - name: Set up Git
+      - name: Call child workflow (Auto Merge)
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          # git config user.name "yannsugi"
-          # git config user.email "yannsugi966@gmail.com"
-
-      - name: Fetch source branch (test-env-b)
-        run: |
-          git fetch origin test-env-b:test-env-b
-
-      - name: Check merge conflict
-        id: merge_check
-        run: |
-          if git merge --no-commit --no-ff test-env-b; then
-            echo "has_conflict=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_conflict=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Reset merge state
-        run: git reset --merge || true
-
-      # ✅ Conflict がなければ自動マージ
-      - name: Auto-merge if no conflict
-        if: steps.merge_check.outputs.has_conflict == 'false'
-        run: |
-          git merge --no-edit test-env-b
-          git push origin ${{ env.BASE_BRANCH }}
-
-      # ✅ Conflict がある場合は対応用ブランチを作成して PR を作成
-      - name: Create conflict resolution branch and PR
-        if: steps.merge_check.outputs.has_conflict == 'true'
-        run: |
-          BRANCH_NAME=auto/conflict-fix-$(date +%s)
-          git checkout -b $BRANCH_NAME origin/test-env-b
-          git push origin $BRANCH_NAME
-
-          # --reviewer yann \ bad
-          # --reviewer yannsugi \ good
-
-          gh pr create \
-            --base ${{ env.BASE_BRANCH }} \
-            --head $BRANCH_NAME \
-            --title "${{ env.PR_TITLE }}" \
-            --reviewer yannsugi \
-            --body "Auto-generated PR due to merge conflict between test-env-b and test-env-c."
+          gh workflow run "Auto Merge" \
+            -f from_branch=test-env-b \
+            -f to_branch=test-env-c
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
