@@ -10,27 +10,50 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PR_TITLE: "[Conflict] test-env-a -> test-env-b"
+      TARGET_BRANCH: test-env-a
       BASE_BRANCH: test-env-b
       NEXT_WORKFLOW: auto-merge-b-to-c.yml
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 必要に応じて PERSONAL_TOKEN に差し替え
 
     steps:
+    　- name: Checkout branchA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Fetch branchB
+        run: git fetch origin branchB
+
+      - name: Check if branchB is merged
+        id: check_source
+        run: |
+          if git merge-base --is-ancestor origin/${{ env.BASE_BRANCH }} HEAD; then
+            echo "merged_base=true" >> $GITHUB_OUTPUT
+          else
+            echo "merged_base=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout base branch (test-env-b)
+        if: steps.check_source.outputs.merged_base == 'false'
         uses: actions/checkout@v4
         with:
           ref: ${{ env.BASE_BRANCH }}
           fetch-depth: 0
 
       - name: Set up Git
+        if: steps.check_source.outputs.merged_base == 'false'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Fetch source branch (test-env-a)
+        if: steps.check_source.outputs.merged_base == 'false'
         run: |
           git fetch origin test-env-a:test-env-a
 
       - name: Check for merge conflicts
+        if: steps.check_source.outputs.merged_base == 'false'
         id: merge_check
         run: |
           echo "🔍 Checking for conflicts..."
@@ -43,17 +66,20 @@ jobs:
           fi
 
       - name: Reset merge state
+        if: steps.check_source.outputs.merged_base == 'false'
         run: git reset --merge || true
 
       - name: Auto-merge if no conflict
-        if: steps.merge_check.outputs.has_conflict == 'false'
+        if:  steps.check_source.outputs.merged_base == 'false'
+          && steps.merge_check.outputs.has_conflict == 'false'
         run: |
           echo "🚀 Performing auto-merge and pushing to ${{ env.BASE_BRANCH }}"
           git merge --no-edit test-env-a
           git push origin ${{ env.BASE_BRANCH }}
 
       - name: Trigger next workflow (test-env-b → test-env-c)
-        if: steps.merge_check.outputs.has_conflict == 'false'
+        if:  steps.check_source.outputs.merged_base == 'false'
+          && steps.merge_check.outputs.has_conflict == 'false'
         run: |
           echo "🚀 Triggering next workflow: ${{ env.NEXT_WORKFLOW }}"
           gh workflow run \
@@ -63,7 +89,8 @@ jobs:
           GH_TOKEN: ${{ secrets.PERSONAL_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Create conflict resolution branch and PR
-        if: steps.merge_check.outputs.has_conflict == 'true'
+        if:  steps.check_source.outputs.merged_base == 'false'
+          && steps.merge_check.outputs.has_conflict == 'true'
         run: |
           BRANCH_NAME=auto/conflict-fix-$(date +%s)
           git checkout -b $BRANCH_NAME origin/test-env-a
